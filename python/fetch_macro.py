@@ -1,7 +1,8 @@
 import yfinance as yf
 import json
 import sys
-import os # [추가] 경로 및 디렉토리 조작을 위한 모듈
+import os
+import time
 import warnings
 
 # yfinance 내부 경고 메시지 숨김 처리
@@ -32,28 +33,31 @@ def get_macro_data():
                 })
             result[key] = prices
             
-        # [수정] stdout 출력을 제거하고, data 폴더에 json 파일로 저장합니다.
+        # 도커 환경에서 공유 볼륨으로 매핑된 절대 경로 '/data'를 직접 사용합니다.
+        data_dir = '/data'
         
-        # 1. 현재 파이썬 스크립트의 절대 경로(giup/python/)를 가져옵니다.
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # 2. 한 단계 위로 올라가 data 폴더(giup/data/)를 가리킵니다.
-        data_dir = os.path.join(current_dir, '..', 'data')
-        
-        # 3. data 폴더가 없다면 안전하게 생성해 줍니다.
+        # /data 폴더가 없다면 안전하게 생성 (보통 도커가 자동으로 매핑해 줌)
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
             
-        # 4. 최종 파일 경로 (giup/data/macro_data.json)
+        # 최종 파일 경로 (/data/macro_data.json)
         file_path = os.path.join(data_dir, 'macro_data.json')
         
-        # 5. 수집한 데이터를 파일에 기록합니다.
+        # 수집한 데이터를 파일에 덮어쓰기 기록합니다.
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False)
             
+        # flush=True를 주어야 Docker 로그창에서 즉시 확인할 수 있습니다.
+        print("✅ 거시경제 데이터 업데이트 완료!", flush=True)
+            
     except Exception as e:
-        print(json.dumps({"error": str(e)}), file=sys.stderr)
-        sys.exit(1)
+        print(f"❌ 데이터 갱신 중 에러 발생: {e}", file=sys.stderr, flush=True)
 
 if __name__ == "__main__":
-    get_macro_data()
+    print("🚀 거시경제 모니터링 데몬 시작...", flush=True)
+    
+    # 봇이 종료되지 않고 1분마다 계속 동작하도록 무한 루프 설정
+    while True:
+        get_macro_data()
+        # [수정] 600초(10분)에서 60초(1분)로 갱신 주기 단축
+        time.sleep(60)

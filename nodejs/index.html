@@ -49,7 +49,7 @@
             background: white; 
             border-radius: 8px; 
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            height: 300px; 
+            height: 340px; 
             overflow: hidden; 
             display: flex; 
             flex-direction: column; 
@@ -58,20 +58,44 @@
         
         /* 지표 제목 라벨 */
         .widget-title {
-            font-size: 15px; 
+            font-size: 14px; 
             font-weight: bold; 
-            color: #333; 
-            padding: 12px 0;
-            background-color: #fff; 
-            border-bottom: 1px solid #eee; 
+            color: #666; 
+            padding: 12px 20px 5px 20px;
+            text-align: left;
             margin: 0; 
             z-index: 10;
         }
+
+        /* 실시간 현재가 및 등락률 컨테이너 */
+        .price-container {
+            text-align: left;
+            padding: 0 20px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: baseline;
+        }
+        /* 현재가 폰트 */
+        .current-price {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e1e1e;
+            margin-right: 10px;
+        }
+        /* 등락률 기본 폰트 */
+        .price-change {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        /* 국내 주식 투자 관점의 직관적인 색상 지정 (상승: 빨강, 하락: 파랑) */
+        .price-change.up { color: #d32f2f; }
+        .price-change.down { color: #1565c0; }
+        .price-change.steady { color: #767676; }
         
         /* 차트가 그려질 컨테이너 영역 */
         .chart-container {
             flex-grow: 1; 
-            padding: 10px; 
+            padding: 0 10px 10px 10px; 
             position: relative; 
             width: 100%; 
             box-sizing: border-box;
@@ -99,6 +123,10 @@
         
         <div class="widget-card">
             <p class="widget-title">원/달러 환율 (USD/KRW)</p>
+            <div class="price-container">
+                <span class="current-price" id="price-usdkrw">-</span>
+                <span class="price-change" id="change-usdkrw">-</span>
+            </div>
             <div class="chart-container">
                 <div class="loading-text" id="load-usdkrw">데이터 불러오는 중...</div>
                 <canvas id="chart-usdkrw"></canvas>
@@ -107,6 +135,10 @@
 
         <div class="widget-card">
             <p class="widget-title">미국 10년물 국채 금리</p>
+            <div class="price-container">
+                <span class="current-price" id="price-us10y">-</span>
+                <span class="price-change" id="change-us10y">-</span>
+            </div>
             <div class="chart-container">
                 <div class="loading-text" id="load-us10y">데이터 불러오는 중...</div>
                 <canvas id="chart-us10y"></canvas>
@@ -115,6 +147,10 @@
 
         <div class="widget-card">
             <p class="widget-title">WTI 국제유가</p>
+            <div class="price-container">
+                <span class="current-price" id="price-wti">-</span>
+                <span class="price-change" id="change-wti">-</span>
+            </div>
             <div class="chart-container">
                 <div class="loading-text" id="load-wti">데이터 불러오는 중...</div>
                 <canvas id="chart-wti"></canvas>
@@ -123,6 +159,10 @@
 
         <div class="widget-card">
             <p class="widget-title">나스닥 100</p>
+            <div class="price-container">
+                <span class="current-price" id="price-ndx">-</span>
+                <span class="price-change" id="change-ndx">-</span>
+            </div>
             <div class="chart-container">
                 <div class="loading-text" id="load-ndx">데이터 불러오는 중...</div>
                 <canvas id="chart-ndx"></canvas>
@@ -131,6 +171,10 @@
         
         <div class="widget-card">
             <p class="widget-title">코스피 (KOSPI)</p>
+            <div class="price-container">
+                <span class="current-price" id="price-kospi">-</span>
+                <span class="price-change" id="change-kospi">-</span>
+            </div>
             <div class="chart-container">
                 <div class="loading-text" id="load-kospi">데이터 불러오는 중...</div>
                 <canvas id="chart-kospi"></canvas>
@@ -139,6 +183,10 @@
         
          <div class="widget-card">
             <p class="widget-title">VIX 공포지수</p>
+            <div class="price-container">
+                <span class="current-price" id="price-vix">-</span>
+                <span class="price-change" id="change-vix">-</span>
+            </div>
             <div class="chart-container">
                 <div class="loading-text" id="load-vix">데이터 불러오는 중...</div>
                 <canvas id="chart-vix"></canvas>
@@ -148,6 +196,9 @@
     </div>
 
     <script>
+        // 전역 차트 인스턴스 저장을 위한 객체 (차트 중복 생성 방지용)
+        const chartInstances = {};
+
         // 서버의 /api/macro 엔드포인트를 호출하여 JSON 데이터를 받아오는 함수
         async function fetchAndRenderCharts() {
             try {
@@ -155,74 +206,126 @@
                 const data = await response.json();
                 
                 if (data.error) {
-                    alert("데이터 수집 중 오류 발생: " + data.error);
+                    console.warn("데이터를 기다리는 중입니다: " + data.error);
                     return;
                 }
 
                 /**
-                 * 개별 차트를 그리는 공통 모듈 함수
-                 * @param {string} canvasId - 캔버스 엘리먼트 ID
-                 * @param {string} loadingId - 로딩 텍스트 엘리먼트 ID
-                 * @param {Array} chartData - {date, close} 구조의 배열 데이터
-                 * @param {string} lineColor - 차트 선 색상
-                 * @param {string} fillColor - 차트 하단 영역 채우기 색상
+                 * 트레이딩뷰 스타일 실시간 현재가 및 등락률 업데이트 함수
                  */
-                function drawChart(canvasId, loadingId, chartData, lineColor, fillColor) {
-                    // 데이터 로드가 완료되면 로딩 가이드를 숨깁니다.
-                    document.getElementById(loadingId).style.display = 'none';
+                function updatePriceInfo(priceId, changeId, chartData) {
+                    if (!chartData || chartData.length < 2) return;
                     
-                    const ctx = document.getElementById(canvasId).getContext('2d');
-                    new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: chartData.map(d => d.date), // X축: 날짜 배열
-                            datasets: [{
-                                data: chartData.map(d => d.close), // Y축: 종가 배열
-                                borderColor: lineColor,
-                                backgroundColor: fillColor,
-                                borderWidth: 2,
-                                fill: true,
-                                pointRadius: 0, // 위젯 느낌을 내기 위해 선 위의 점 숨김
-                                tension: 0.1 // 부드러운 곡선 효과
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: false } // 범례 비활성화
-                            },
-                            scales: {
-                                x: { display: false }, // X축 선 및 라벨 숨김 (깔끔한 대시보드용)
-                                y: { 
-                                    display: true,
-                                    position: 'right', // 수치를 우측에 배치하여 가독성 향상
-                                    grid: { color: '#f0f0f0' } // 은은한 그리드 라인 배경
-                                }
-                            },
-                            interaction: {
-                                intersect: false,
-                                mode: 'index',
-                            }
-                        }
-                    });
+                    const latest = chartData[chartData.length - 1];   // 가장 최근 데이터 (현재가)
+                    const previous = chartData[chartData.length - 2]; // 직전 영업일 데이터 (전일종가)
+                    
+                    const currentPrice = latest.close;
+                    const change = currentPrice - previous.close;
+                    const changePercent = (change / previous.close) * 100;
+                    
+                    const priceEl = document.getElementById(priceId);
+                    const changeEl = document.getElementById(changeId);
+                    
+                    // 천단위 콤마 및 소수점 2자리 포맷팅
+                    priceEl.innerText = currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    
+                    const formattedChange = Math.abs(change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const formattedPercent = changePercent.toFixed(2);
+                    
+                    if (change > 0) {
+                        changeEl.innerText = `▲ ${formattedChange} (+${formattedPercent}%)`;
+                        changeEl.className = "price-change up";
+                    } else if (change < 0) {
+                        changeEl.innerText = `▼ ${formattedChange} (${formattedPercent}%)`;
+                        changeEl.className = "price-change down";
+                    } else {
+                        changeEl.innerText = `0.00 (0.00%)`;
+                        changeEl.className = "price-change steady";
+                    }
                 }
 
-                // 6가지 거시경제 지표 차트 순차적 렌더링 (시각적 구분을 위한 고유 컬러 지정)
+                /**
+                 * 개별 차트를 그리는 공통 모듈 함수 (데이터 갱신 지원)
+                 */
+                function drawChart(canvasId, loadingId, chartData, lineColor, fillColor) {
+                    document.getElementById(loadingId).style.display = 'none';
+                    const ctx = document.getElementById(canvasId).getContext('2d');
+
+                    // 이미 차트가 그려져 있다면 데이터만 부드럽게 업데이트
+                    if (chartInstances[canvasId]) {
+                        chartInstances[canvasId].data.labels = chartData.map(d => d.date);
+                        chartInstances[canvasId].data.datasets[0].data = chartData.map(d => d.close);
+                        chartInstances[canvasId].update('none'); // 깜빡임 방지 애니메이션 제거
+                    } else {
+                        // 최초 로딩 시 차트 새로 생성
+                        chartInstances[canvasId] = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: chartData.map(d => d.date), 
+                                datasets: [{
+                                    data: chartData.map(d => d.close), 
+                                    borderColor: lineColor,
+                                    backgroundColor: fillColor,
+                                    borderWidth: 2,
+                                    fill: true,
+                                    pointRadius: 0, 
+                                    tension: 0.1 
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: false } 
+                                },
+                                scales: {
+                                    x: { display: false }, 
+                                    y: { 
+                                        display: true,
+                                        position: 'right', 
+                                        grid: { color: '#f0f0f0' } 
+                                    }
+                                },
+                                interaction: {
+                                    intersect: false,
+                                    mode: 'index',
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // 6가지 거시경제 지표 실시간 렌더링
                 drawChart('chart-usdkrw', 'load-usdkrw', data.usdkrw, '#2962FF', 'rgba(41, 98, 255, 0.1)');
+                updatePriceInfo('price-usdkrw', 'change-usdkrw', data.usdkrw);
+                
                 drawChart('chart-us10y', 'load-us10y', data.us10y, '#FF9800', 'rgba(255, 152, 0, 0.1)');
+                updatePriceInfo('price-us10y', 'change-us10y', data.us10y);
+                
                 drawChart('chart-wti', 'load-wti', data.wti, '#00897B', 'rgba(0, 137, 123, 0.1)');
+                updatePriceInfo('price-wti', 'change-wti', data.wti);
+                
                 drawChart('chart-ndx', 'load-ndx', data.ndx, '#D81B60', 'rgba(216, 27, 96, 0.1)');
+                updatePriceInfo('price-ndx', 'change-ndx', data.ndx);
+                
                 drawChart('chart-kospi', 'load-kospi', data.kospi, '#8E24AA', 'rgba(142, 36, 170, 0.1)');
+                updatePriceInfo('price-kospi', 'change-kospi', data.kospi);
+                
                 drawChart('chart-vix', 'load-vix', data.vix, '#E53935', 'rgba(229, 57, 53, 0.1)');
+                updatePriceInfo('price-vix', 'change-vix', data.vix);
 
             } catch (error) {
                 console.error("대시보드 데이터 로딩 실패:", error);
             }
         }
 
-        // 브라우저 화면이 완전히 로드되면 실시간 데이터 갱신 파이프라인 작동
-        window.onload = fetchAndRenderCharts;
+        // 브라우저 화면이 완전히 로드되면 실행
+        window.onload = () => {
+            fetchAndRenderCharts(); // 페이지 진입 시 즉시 1회 호출
+            
+            // [추가] 60초(60000ms)마다 새로고침 없이 백그라운드에서 실시간 데이터 자동 갱신
+            setInterval(fetchAndRenderCharts, 60000); 
+        };
     </script>
 </body>
 </html>
