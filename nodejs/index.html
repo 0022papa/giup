@@ -323,8 +323,8 @@
         window.onload = () => {
             fetchAndRenderCharts(); // 페이지 진입 시 즉시 1회 호출
             
-            // [추가] 60초(60000ms)마다 새로고침 없이 백그라운드에서 실시간 데이터 자동 갱신
-            setInterval(fetchAndRenderCharts, 60000); 
+            // [수정] 600,000ms(10분)마다 새로고침 없이 백그라운드에서 실시간 데이터 자동 갱신
+            setInterval(fetchAndRenderCharts, 600000); 
         };
     </script>
 </body>
