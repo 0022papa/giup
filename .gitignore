@@ -1,0 +1,4 @@
+# .env 파일
+nodejs/.env
+-r nodejs/node_modules
+node_modules
