@@ -98,7 +98,7 @@ const server = http.createServer((req, res) => {
     res.end();
   } 
   
-  // [핵심 수정] 파일 직접 읽기 구조로 변경된 API 엔드포인트
+  // 파일 직접 읽기 구조로 변경된 API 엔드포인트
   else if (req.url === '/api/macro' && req.method === 'GET') {
     if (!isLoggedIn) {
       res.writeHead(401);
@@ -106,8 +106,6 @@ const server = http.createServer((req, res) => {
       return;
     }
     
-    // 파이썬을 실행(exec)하는 로직을 완전히 제거했습니다.
-    // giup-python 컨테이너가 10분마다 만들어두는 도커 내부의 절대경로 파일만 순수하게 읽어옵니다.
     const dataFilePath = '/data/macro_data.json';
     
     fs.readFile(dataFilePath, 'utf8', (err, data) => {
@@ -118,9 +116,12 @@ const server = http.createServer((req, res) => {
           return;
       }
       
-      // 읽어온 json 파일 내용을 그대로 브라우저로 전송
+      // [추가된 부분] 파이썬 스크립트에서 예기치 않게 NaN이 기록되었을 경우, 
+      // 프론트엔드의 JSON.parse() 에러(SyntaxError)를 막기 위해 안전한 null로 강제 치환합니다.
+      const sanitizedData = data.replace(/\bNaN\b/g, "null");
+      
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(data);
+      res.end(sanitizedData);
     });
     
   } else {

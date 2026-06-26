@@ -8,56 +8,72 @@ import warnings
 # yfinance 내부 경고 메시지 숨김 처리
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-def get_macro_data():
-    tickers = {
-        "usdkrw": "USDKRW=X",
-        "us10y": "^TNX",
-        "wti": "CL=F",
-        "ndx": "^NDX",
-        "kospi": "^KS11",
-        "vix": "^VIX"
-    }
+# 지표별 수집 주기 설정 (초 단위)
+TICKER_CONFIG = {
+    "kospi": {"symbol": "^KS11", "interval": 60},      # 코스피: 1분 (빠른 갱신)
+    "ndx": {"symbol": "^NDX", "interval": 60},        # 나스닥: 1분 (빠른 갱신)
+    "usdkrw": {"symbol": "USDKRW=X", "interval": 300}, # 환율: 5분 (중간 주기)
+    "us10y": {"symbol": "^TNX", "interval": 600},     # 10년물 금리: 10분 (느린 변동)
+    "wti": {"symbol": "CL=F", "interval": 600},       # 유가: 10분 (느린 변동)
+    "vix": {"symbol": "^VIX", "interval": 600}        # VIX: 10분 (느린 변동)
+}
 
-    result = {}
+# 메모리에 수집된 데이터를 유지 (파일 덮어쓰기를 위해 전체 데이터 보관 필요)
+cached_data = {}
+
+# 각 지표별 마지막 갱신 시간을 기록 (처음엔 0으로 설정하여 즉시 수집 유도)
+last_update_times = {key: 0 for key in TICKER_CONFIG.keys()}
+
+def get_macro_data():
+    current_time = time.time()
+    updated_any = False
     
-    try:
-        for key, symbol in tickers.items():
-            # 최근 1개월 데이터 수집
-            data = yf.Ticker(symbol).history(period="1mo")
-            prices = []
-            
-            for date, row in data.iterrows():
-                prices.append({
-                    "date": date.strftime("%Y-%m-%d"),
-                    "close": round(row["Close"], 3)
-                })
-            result[key] = prices
-            
-        # 도커 환경에서 공유 볼륨으로 매핑된 절대 경로 '/data'를 직접 사용합니다.
+    for key, config in TICKER_CONFIG.items():
+        # 마지막 갱신 시간으로부터 설정된 주기(interval) 이상 경과했는지 확인
+        if current_time - last_update_times[key] >= config["interval"]:
+            try:
+                # 데이터 수집
+                data = yf.Ticker(config["symbol"]).history(period="1mo")
+                
+                # 결측치(NaN) 제거로 자바스크립트 JSON 파싱 에러 방지
+                data = data.dropna(subset=['Close'])
+                
+                prices = []
+                for date, row in data.iterrows():
+                    prices.append({
+                        "date": date.strftime("%Y-%m-%d"),
+                        "close": round(row["Close"], 3)
+                    })
+                    
+                cached_data[key] = prices
+                last_update_times[key] = current_time
+                updated_any = True
+                
+                print(f"🔄 [{key}] 데이터 갱신 완료", flush=True)
+                
+            except Exception as e:
+                print(f"❌ [{key}] 데이터 갱신 중 에러 발생: {e}", file=sys.stderr, flush=True)
+                
+    # 하나라도 업데이트된 지표가 있고, 모든 지표가 최소 1회 이상 수집되었을 때만 파일 저장
+    # (처음 실행 시 일부 데이터만 있는 상태로 저장되어 대시보드가 깨지는 것을 방지)
+    if updated_any and len(cached_data) == len(TICKER_CONFIG):
         data_dir = '/data'
-        
-        # /data 폴더가 없다면 안전하게 생성 (보통 도커가 자동으로 매핑해 줌)
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
             
-        # 최종 파일 경로 (/data/macro_data.json)
         file_path = os.path.join(data_dir, 'macro_data.json')
         
-        # 수집한 데이터를 파일에 덮어쓰기 기록합니다.
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(result, f, ensure_ascii=False)
-            
-        # flush=True를 주어야 Docker 로그창에서 즉시 확인할 수 있습니다.
-        print("✅ 거시경제 데이터 업데이트 완료!", flush=True)
-            
-    except Exception as e:
-        print(f"❌ 데이터 갱신 중 에러 발생: {e}", file=sys.stderr, flush=True)
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(cached_data, f, ensure_ascii=False)
+            print("✅ macro_data.json 최종 저장 완료!", flush=True)
+        except Exception as e:
+            print(f"❌ 파일 저장 에러: {e}", file=sys.stderr, flush=True)
 
 if __name__ == "__main__":
-    print("🚀 거시경제 모니터링 데몬 시작...", flush=True)
+    print("🚀 지표별 맞춤 주기 거시경제 모니터링 데몬 시작...", flush=True)
     
-    # 봇이 종료되지 않고 10분마다 계속 동작하도록 무한 루프 설정
     while True:
         get_macro_data()
-        # [수정] 60초(1분)에서 600초(10분)로 갱신 주기 연장
-        time.sleep(600)
+        # 가장 짧은 주기인 1분에 맞춰 데몬은 60초마다 깨어나서 갱신 대상을 확인합니다.
+        time.sleep(60)
