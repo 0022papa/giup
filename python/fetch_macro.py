@@ -10,32 +10,30 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # 지표별 수집 주기 설정 (초 단위)
 TICKER_CONFIG = {
-    "kospi": {"symbol": "^KS11", "interval": 60},      # 코스피: 1분 (빠른 갱신)
-    "ndx": {"symbol": "^NDX", "interval": 60},        # 나스닥: 1분 (빠른 갱신)
-    "usdkrw": {"symbol": "USDKRW=X", "interval": 300}, # 환율: 5분 (중간 주기)
-    "us10y": {"symbol": "^TNX", "interval": 600},     # 10년물 금리: 10분 (느린 변동)
-    "wti": {"symbol": "CL=F", "interval": 600},       # 유가: 10분 (느린 변동)
-    "vix": {"symbol": "^VIX", "interval": 600}        # VIX: 10분 (느린 변동)
+    "kospi": {"symbol": "^KS11", "interval": 60},      # 코스피: 1분
+    "ndx": {"symbol": "^NDX", "interval": 60},        # 나스닥: 1분
+    "usdkrw": {"symbol": "USDKRW=X", "interval": 300}, # 환율: 5분
+    "us10y": {"symbol": "^TNX", "interval": 600},     # 10년물 금리: 10분
+    "wti": {"symbol": "CL=F", "interval": 600},       # 유가: 10분
+    "vix": {"symbol": "^VIX", "interval": 600}        # VIX: 10분
 }
 
-# 메모리에 수집된 데이터를 유지 (파일 덮어쓰기를 위해 전체 데이터 보관 필요)
+# 메모리에 수집된 데이터를 유지
 cached_data = {}
-
-# 각 지표별 마지막 갱신 시간을 기록 (처음엔 0으로 설정하여 즉시 수집 유도)
 last_update_times = {key: 0 for key in TICKER_CONFIG.keys()}
 
-def get_macro_data():
+# [추가] 강제 갱신을 감지할 플래그 파일 경로
+FLAG_FILE = '/data/force_refresh.flag'
+
+def get_macro_data(force_all=False):
     current_time = time.time()
     updated_any = False
     
     for key, config in TICKER_CONFIG.items():
-        # 마지막 갱신 시간으로부터 설정된 주기(interval) 이상 경과했는지 확인
-        if current_time - last_update_times[key] >= config["interval"]:
+        # [수정] 강제 갱신 요청(force_all)이거나 설정된 주기가 지났을 때만 실행
+        if force_all or (current_time - last_update_times[key] >= config["interval"]):
             try:
-                # 데이터 수집
                 data = yf.Ticker(config["symbol"]).history(period="1mo")
-                
-                # 결측치(NaN) 제거로 자바스크립트 JSON 파싱 에러 방지
                 data = data.dropna(subset=['Close'])
                 
                 prices = []
@@ -49,13 +47,13 @@ def get_macro_data():
                 last_update_times[key] = current_time
                 updated_any = True
                 
-                print(f"🔄 [{key}] 데이터 갱신 완료", flush=True)
+                # 로깅에 강제 일괄 갱신 여부 표시
+                status_text = " (강제 일괄 갱신)" if force_all else ""
+                print(f"🔄 [{key}] 데이터 갱신 완료{status_text}", flush=True)
                 
             except Exception as e:
                 print(f"❌ [{key}] 데이터 갱신 중 에러 발생: {e}", file=sys.stderr, flush=True)
                 
-    # 하나라도 업데이트된 지표가 있고, 모든 지표가 최소 1회 이상 수집되었을 때만 파일 저장
-    # (처음 실행 시 일부 데이터만 있는 상태로 저장되어 대시보드가 깨지는 것을 방지)
     if updated_any and len(cached_data) == len(TICKER_CONFIG):
         data_dir = '/data'
         if not os.path.exists(data_dir):
@@ -74,6 +72,20 @@ if __name__ == "__main__":
     print("🚀 지표별 맞춤 주기 거시경제 모니터링 데몬 시작...", flush=True)
     
     while True:
-        get_macro_data()
-        # 가장 짧은 주기인 1분에 맞춰 데몬은 60초마다 깨어나서 갱신 대상을 확인합니다.
-        time.sleep(60)
+        # [추가] 웹 서버(Node.js)가 생성한 강제 갱신 플래그 파일 감지
+        if os.path.exists(FLAG_FILE):
+            print("⚡ 웹페이지 강제 새로고침 감지! 모든 지표를 즉시 수집합니다.", flush=True)
+            get_macro_data(force_all=True)
+            
+            # 수집이 완료되면 플래그 파일을 삭제하여 Node.js에 작업 완료를 알림
+            try:
+                os.remove(FLAG_FILE)
+            except Exception as e:
+                pass
+        else:
+            # 평상시 백그라운드 주기적 갱신 로직 실행
+            get_macro_data(force_all=False)
+            
+        # [수정] 강제 갱신 신호를 즉각적으로 알아채기 위해 1초마다 루프를 돕니다.
+        # (실제 API 수집은 위 로직에서 필터링되므로 과부하가 없습니다.)
+        time.sleep(1)
