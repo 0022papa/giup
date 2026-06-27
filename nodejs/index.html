@@ -122,8 +122,20 @@
                 <canvas id="chart-kospi"></canvas>
             </div>
         </div>
+
+        <div class="widget-card">
+            <p class="widget-title">코스닥 (KOSDAQ)</p>
+            <div class="price-container" id="container-kosdaq">
+                <span class="current-price" id="price-kosdaq">-</span>
+                <span class="price-change" id="change-kosdaq">-</span>
+            </div>
+            <div class="chart-container">
+                <div class="loading-text" id="load-kosdaq">데이터 불러오는 중...</div>
+                <canvas id="chart-kosdaq"></canvas>
+            </div>
+        </div>
         
-         <div class="widget-card">
+        <div class="widget-card">
             <p class="widget-title">VIX 공포지수</p>
             <div class="price-container" id="container-vix">
                 <span class="current-price" id="price-vix">-</span>
@@ -132,6 +144,18 @@
             <div class="chart-container">
                 <div class="loading-text" id="load-vix">데이터 불러오는 중...</div>
                 <canvas id="chart-vix"></canvas>
+            </div>
+        </div>
+
+        <div class="widget-card">
+            <p class="widget-title">금 (Gold)</p>
+            <div class="price-container" id="container-gold">
+                <span class="current-price" id="price-gold">-</span>
+                <span class="price-change" id="change-gold">-</span>
+            </div>
+            <div class="chart-container">
+                <div class="loading-text" id="load-gold">데이터 불러오는 중...</div>
+                <canvas id="chart-gold"></canvas>
             </div>
         </div>
     </div>
@@ -144,7 +168,7 @@
                 const url = isForce ? '/api/macro?force=true' : '/api/macro';
                 
                 if (isForce) {
-                    const widgets = ['usdkrw', 'us10y', 'wti', 'ndx', 'kospi', 'vix'];
+                    const widgets = ['usdkrw', 'us10y', 'wti', 'ndx', 'kospi', 'kosdaq', 'vix', 'gold'];
                     widgets.forEach(id => {
                         const loadEl = document.getElementById(`load-${id}`);
                         if (loadEl && !chartInstances[`chart-${id}`]) {
@@ -290,9 +314,15 @@
                 
                 drawChart('chart-kospi', 'load-kospi', data.kospi, '#8E24AA', 'rgba(142, 36, 170, 0.1)');
                 updatePriceInfo('price-kospi', 'change-kospi', data.kospi, 'container-kospi');
+
+                drawChart('chart-kosdaq', 'load-kosdaq', data.kosdaq, '#0288D1', 'rgba(2, 136, 209, 0.1)');
+                updatePriceInfo('price-kosdaq', 'change-kosdaq', data.kosdaq, 'container-kosdaq');
                 
                 drawChart('chart-vix', 'load-vix', data.vix, '#E53935', 'rgba(229, 57, 53, 0.1)');
                 updatePriceInfo('price-vix', 'change-vix', data.vix, 'container-vix');
+
+                drawChart('chart-gold', 'load-gold', data.gold, '#FBC02D', 'rgba(251, 192, 45, 0.1)');
+                updatePriceInfo('price-gold', 'change-gold', data.gold, 'container-gold');
 
             } catch (error) {
                 console.error("대시보드 데이터 로딩 실패:", error);

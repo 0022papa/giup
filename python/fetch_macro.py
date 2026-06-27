@@ -8,13 +8,15 @@ import warnings
 # yfinance 내부 경고 메시지 숨김 처리
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-# 지표별 수집 주기 설정 (초 단위)
+# 지표별 수집 주기 설정 (초 단위) - 코스닥(kosdaq), 금(gold) 추가
 TICKER_CONFIG = {
     "kospi": {"symbol": "^KS11", "interval": 60},      # 코스피: 1분
+    "kosdaq": {"symbol": "^KQ11", "interval": 60},     # 코스닥: 1분
     "ndx": {"symbol": "^NDX", "interval": 60},        # 나스닥: 1분
     "usdkrw": {"symbol": "USDKRW=X", "interval": 300}, # 환율: 5분
     "us10y": {"symbol": "^TNX", "interval": 600},     # 10년물 금리: 10분
     "wti": {"symbol": "CL=F", "interval": 600},       # 유가: 10분
+    "gold": {"symbol": "GC=F", "interval": 600},       # 금: 10분
     "vix": {"symbol": "^VIX", "interval": 600}        # VIX: 10분
 }
 
@@ -25,9 +27,10 @@ last_update_times = {key: 0 for key in TICKER_CONFIG.keys()}
 # 강제 갱신을 감지할 플래그 파일 경로
 FLAG_FILE = '/data/force_refresh.flag'
 
-# [수정] 5대 거시지표 영향 분석 시 문장 끝에 영향도 이모지(🟢, ⚪, 🔴) 추가
+# 5대 거시지표 영향 분석 시 문장 끝에 영향도 이모지(🟢, ⚪, 🔴) 추가
 def generate_market_analysis(data_dict):
-    required_keys = ['usdkrw', 'us10y', 'wti', 'ndx', 'vix']
+    # gold를 필수 분석 키에 추가
+    required_keys = ['usdkrw', 'us10y', 'wti', 'ndx', 'vix', 'gold']
     if not all(k in data_dict and isinstance(data_dict[k], list) and len(data_dict[k]) >= 2 for k in required_keys):
         return "데이터 수집 중이거나 부족하여 분석할 수 없습니다."
 
@@ -82,6 +85,16 @@ def generate_market_analysis(data_dict):
         analysis_texts.append("📉 [VIX] 공포지수 하락: 시장의 불안감이 완화되어 국내 증시의 안정적인 상승 흐름에 기여할 수 있습니다. 🟢")
     else:
         analysis_texts.append("➖ [VIX] 공포지수 보합: 시장의 변동성이 기존 수준을 유지하고 있습니다. ⚪")
+
+    # 6. 금 분석 (추가)
+    gold_last = data_dict['gold'][-1]['close']
+    gold_prev = data_dict['gold'][-2]['close']
+    if gold_last > gold_prev:
+        analysis_texts.append("📈 [금] 금 가격 상승: 안전자산 선호 심리가 강화되고 있으며, 시장의 불확실성에 대비하는 수요가 늘고 있습니다. ⚪")
+    elif gold_last < gold_prev:
+        analysis_texts.append("📉 [금] 금 가격 하락: 위험자산 선호 심리가 살아나며 주식 등 위험자산으로 자금이 이동할 가능성이 있습니다. 🟢")
+    else:
+        analysis_texts.append("➖ [금] 금 가격 보합: 안전자산 수요에 뚜렷한 변화가 없습니다. ⚪")
 
     return " | ".join(analysis_texts)
 
