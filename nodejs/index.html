@@ -6,12 +6,29 @@
     <title>거시경제 대시보드 - giup</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f4f4f4; }
-        .header-section { margin-bottom: 40px; }
-        h1 { color: #007acc; margin-bottom: 10px; }
-        .description { color: #555; margin-bottom: 20px; }
-        .logout-btn { display: inline-block; padding: 8px 16px; background-color: #333; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; transition: background-color 0.3s; }
+        body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f4f4f4; position: relative; }
+        
+        .logout-btn { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            display: inline-block; 
+            padding: 8px 16px; 
+            background-color: #333; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 4px; 
+            font-size: 14px; 
+            transition: background-color 0.3s; 
+            z-index: 100;
+        }
         .logout-btn:hover { background-color: #555; }
+        
+        .analysis-section { max-width: 1200px; margin: 40px auto 30px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: left; }
+        .analysis-section h3 { margin-top: 0; color: #1e1e1e; font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .analysis-section ul { margin: 0; padding-left: 20px; color: #444; line-height: 1.8; }
+        .analysis-section li { margin-bottom: 8px; }
+
         .dashboard-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
         .widget-card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); height: 340px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
         .widget-title { font-size: 14px; font-weight: bold; color: #666; padding: 12px 20px 5px 20px; text-align: left; margin: 0; z-index: 10; }
@@ -26,14 +43,15 @@
     </style>
 </head>
 <body>
-    <div class="header-section">
-        <h1>거시경제 모니터링 대시보드 (자체 데이터 수집)</h1>
-        <p class="description">Docker 환경의 data 폴더에 저장된 파일 기반 실시간 지표 대시보드입니다.</p>
-        <a href="/logout" class="logout-btn">로그아웃</a>
+
+    <a href="/logout" class="logout-btn">로그아웃</a>
+
+    <div class="analysis-section">
+        <h3>💡 주요 지표 변동에 따른 증시(KOSPI/KOSDAQ) 예상 영향</h3>
+        <div id="market-analysis-text">데이터를 불러와 분석 중입니다...</div>
     </div>
 
     <div class="dashboard-container">
-        
         <div class="widget-card">
             <p class="widget-title">원/달러 환율 (USD/KRW)</p>
             <div class="price-container">
@@ -105,19 +123,15 @@
                 <canvas id="chart-vix"></canvas>
             </div>
         </div>
-
     </div>
 
     <script>
         const chartInstances = {};
 
-        // [수정] 서버 호출 시 isForce 파라미터를 받아와 처리하도록 변경
         async function fetchAndRenderCharts(isForce = false) {
             try {
-                // 강제 갱신 요청인 경우 쿼리스트링 부착
                 const url = isForce ? '/api/macro?force=true' : '/api/macro';
                 
-                // 새로고침 시 사용자에게 화면에서 데이터 갱신 중임을 안내합니다.
                 if (isForce) {
                     const widgets = ['usdkrw', 'us10y', 'wti', 'ndx', 'kospi', 'vix'];
                     widgets.forEach(id => {
@@ -135,6 +149,14 @@
                 if (data.error) {
                     console.warn("데이터를 기다리는 중입니다: " + data.error);
                     return;
+                }
+
+                const analysisEl = document.getElementById('market-analysis-text');
+                if (data.analysis) {
+                    const analysisItems = data.analysis.split(' | ');
+                    analysisEl.innerHTML = '<ul>' + analysisItems.map(item => `<li>${item}</li>`).join('') + '</ul>';
+                } else {
+                    analysisEl.innerHTML = '현재 데이터를 분석 중입니다...';
                 }
 
                 function updatePriceInfo(priceId, changeId, chartData) {
@@ -192,7 +214,45 @@
                                 responsive: true,
                                 maintainAspectRatio: false,
                                 plugins: { legend: { display: false } },
-                                scales: { x: { display: false }, y: { display: true, position: 'right', grid: { color: '#f0f0f0' } } },
+                                scales: { 
+                                    // [추가 및 수정] X축 설정: 최신 데이터 기준 5일 간격으로 세로줄과 날짜(MM-DD) 표시
+                                    x: { 
+                                        display: true, 
+                                        grid: {
+                                            color: function(context) {
+                                                if (context.index !== undefined && context.chart.data.labels) {
+                                                    const totalLabels = context.chart.data.labels.length;
+                                                    // 최신 데이터(마지막 인덱스)로부터 5의 배수만큼 떨어진 곳에만 색상을 줌
+                                                    if ((totalLabels - 1 - context.index) % 5 === 0) {
+                                                        return '#e0e0e0';
+                                                    }
+                                                }
+                                                return 'transparent';
+                                            }
+                                        },
+                                        ticks: {
+                                            autoSkip: false,
+                                            maxRotation: 45,
+                                            minRotation: 45,
+                                            font: { size: 10 },
+                                            callback: function(value, index) {
+                                                const totalLabels = this.chart.data.labels.length;
+                                                // 5일 간격으로만 텍스트를 반환
+                                                if ((totalLabels - 1 - index) % 5 === 0) {
+                                                    const dateStr = this.getLabelForValue(value);
+                                                    // 'YYYY-MM-DD' 형태에서 앞 5자리(YYYY-)를 잘라내 'MM-DD'로 깔끔하게 표시
+                                                    return dateStr ? dateStr.substring(5) : ''; 
+                                                }
+                                                return '';
+                                            }
+                                        }
+                                    },
+                                    y: { 
+                                        display: true, 
+                                        position: 'right', 
+                                        grid: { color: '#f0f0f0' } 
+                                    } 
+                                },
                                 interaction: { intersect: false, mode: 'index' }
                             }
                         });
@@ -201,14 +261,19 @@
 
                 drawChart('chart-usdkrw', 'load-usdkrw', data.usdkrw, '#2962FF', 'rgba(41, 98, 255, 0.1)');
                 updatePriceInfo('price-usdkrw', 'change-usdkrw', data.usdkrw);
+                
                 drawChart('chart-us10y', 'load-us10y', data.us10y, '#FF9800', 'rgba(255, 152, 0, 0.1)');
                 updatePriceInfo('price-us10y', 'change-us10y', data.us10y);
+                
                 drawChart('chart-wti', 'load-wti', data.wti, '#00897B', 'rgba(0, 137, 123, 0.1)');
                 updatePriceInfo('price-wti', 'change-wti', data.wti);
+                
                 drawChart('chart-ndx', 'load-ndx', data.ndx, '#D81B60', 'rgba(216, 27, 96, 0.1)');
                 updatePriceInfo('price-ndx', 'change-ndx', data.ndx);
+                
                 drawChart('chart-kospi', 'load-kospi', data.kospi, '#8E24AA', 'rgba(142, 36, 170, 0.1)');
                 updatePriceInfo('price-kospi', 'change-kospi', data.kospi);
+                
                 drawChart('chart-vix', 'load-vix', data.vix, '#E53935', 'rgba(229, 57, 53, 0.1)');
                 updatePriceInfo('price-vix', 'change-vix', data.vix);
 
@@ -218,10 +283,7 @@
         }
 
         window.onload = () => {
-            // [수정] 사용자가 웹페이지를 처음 접속하거나 F5 새로고침을 했을 때는 강제 일괄 수집(true)을 지시합니다.
             fetchAndRenderCharts(true); 
-            
-            // 백그라운드에서는 기존처럼 1분마다 파이썬 봇이 저장해둔 캐시 데이터만 가볍게 긁어옵니다.
             setInterval(() => fetchAndRenderCharts(false), 60000); 
         };
     </script>

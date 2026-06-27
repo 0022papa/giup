@@ -22,15 +22,75 @@ TICKER_CONFIG = {
 cached_data = {}
 last_update_times = {key: 0 for key in TICKER_CONFIG.keys()}
 
-# [추가] 강제 갱신을 감지할 플래그 파일 경로
+# 강제 갱신을 감지할 플래그 파일 경로
 FLAG_FILE = '/data/force_refresh.flag'
+
+# [수정] 5대 거시지표 영향 분석 시 문장 끝에 영향도 이모지(🟢, ⚪, 🔴) 추가
+def generate_market_analysis(data_dict):
+    required_keys = ['usdkrw', 'us10y', 'wti', 'ndx', 'vix']
+    if not all(k in data_dict and isinstance(data_dict[k], list) and len(data_dict[k]) >= 2 for k in required_keys):
+        return "데이터 수집 중이거나 부족하여 분석할 수 없습니다."
+
+    analysis_texts = []
+
+    # 1. 환율 분석
+    usdkrw_last = data_dict['usdkrw'][-1]['close']
+    usdkrw_prev = data_dict['usdkrw'][-2]['close']
+    if usdkrw_last > usdkrw_prev:
+        analysis_texts.append("📈 [환율] 원/달러 상승: 외국인 수급에 부정적이며, 대형 수출주 외에는 코스피/코스닥 전반에 하방 압력으로 작용할 수 있습니다. 🔴")
+    elif usdkrw_last < usdkrw_prev:
+        analysis_texts.append("📉 [환율] 원/달러 하락: 환차익을 노린 외국인 자금 유입 가능성을 높여 국내 증시에 긍정적입니다. 🟢")
+    else:
+        analysis_texts.append("➖ [환율] 원/달러 보합: 환율로 인한 뚜렷한 증시 방향성은 제한적입니다. ⚪")
+
+    # 2. 금리 분석
+    us10y_last = data_dict['us10y'][-1]['close']
+    us10y_prev = data_dict['us10y'][-2]['close']
+    if us10y_last > us10y_prev:
+        analysis_texts.append("📈 [미 국채금리] 10년물 상승: 미래 수익의 할인율이 높아져 코스닥 기술주 및 성장주 밸류에이션에 부담이 됩니다. 🔴")
+    elif us10y_last < us10y_prev:
+        analysis_texts.append("📉 [미 국채금리] 10년물 하락: 위험자산 선호 심리 회복으로 코스닥 및 성장주 반등에 유리한 환경을 조성합니다. 🟢")
+    else:
+        analysis_texts.append("➖ [미 국채금리] 10년물 보합: 금리 변동에 따른 즉각적인 증시 충격은 없는 상태입니다. ⚪")
+
+    # 3. 유가 분석
+    wti_last = data_dict['wti'][-1]['close']
+    wti_prev = data_dict['wti'][-2]['close']
+    if wti_last > wti_prev:
+        analysis_texts.append("📈 [국제유가] WTI 상승: 인플레이션 우려를 자극해 금리 인하 기대를 낮추며, 정유주엔 호재이나 증시 전반엔 비용 증가 부담입니다. 🔴")
+    elif wti_last < wti_prev:
+        analysis_texts.append("📉 [국제유가] WTI 하락: 물가 상승 압력을 완화하여 코스피 전반의 투자 심리 개선에 도움을 줍니다. 🟢")
+    else:
+        analysis_texts.append("➖ [국제유가] WTI 보합: 에너지 가격 변동에 따른 인플레이션 추가 충격은 제한적입니다. ⚪")
+
+    # 4. 나스닥 분석
+    ndx_last = data_dict['ndx'][-1]['close']
+    ndx_prev = data_dict['ndx'][-2]['close']
+    if ndx_last > ndx_prev:
+        analysis_texts.append("📈 [나스닥] 100 지수 상승: 미 기술주 호조는 국내 반도체, 2차전지 등 IT 관련주의 심리를 개선해 동반 상승을 이끌 수 있습니다. 🟢")
+    elif ndx_last < ndx_prev:
+        analysis_texts.append("📉 [나스닥] 100 지수 하락: 미 기술주 약세 여파로 코스피/코스닥 대형 기술주 중심의 매도세가 출회될 우려가 있습니다. 🔴")
+    else:
+        analysis_texts.append("➖ [나스닥] 100 지수 보합: 미 증시의 뚜렷한 방향성이 부재하여 개별 종목 및 테마 중심의 장세가 예상됩니다. ⚪")
+
+    # 5. VIX 분석
+    vix_last = data_dict['vix'][-1]['close']
+    vix_prev = data_dict['vix'][-2]['close']
+    if vix_last > vix_prev:
+        analysis_texts.append("📈 [VIX] 공포지수 상승: 글로벌 투자 심리 위축으로 신흥국(코스피/코스닥) 시장에서 안전자산으로의 자금 이탈 우려가 있습니다. 🔴")
+    elif vix_last < vix_prev:
+        analysis_texts.append("📉 [VIX] 공포지수 하락: 시장의 불안감이 완화되어 국내 증시의 안정적인 상승 흐름에 기여할 수 있습니다. 🟢")
+    else:
+        analysis_texts.append("➖ [VIX] 공포지수 보합: 시장의 변동성이 기존 수준을 유지하고 있습니다. ⚪")
+
+    return " | ".join(analysis_texts)
+
 
 def get_macro_data(force_all=False):
     current_time = time.time()
     updated_any = False
     
     for key, config in TICKER_CONFIG.items():
-        # [수정] 강제 갱신 요청(force_all)이거나 설정된 주기가 지났을 때만 실행
         if force_all or (current_time - last_update_times[key] >= config["interval"]):
             try:
                 data = yf.Ticker(config["symbol"]).history(period="1mo")
@@ -47,14 +107,15 @@ def get_macro_data(force_all=False):
                 last_update_times[key] = current_time
                 updated_any = True
                 
-                # 로깅에 강제 일괄 갱신 여부 표시
                 status_text = " (강제 일괄 갱신)" if force_all else ""
                 print(f"🔄 [{key}] 데이터 갱신 완료{status_text}", flush=True)
                 
             except Exception as e:
                 print(f"❌ [{key}] 데이터 갱신 중 에러 발생: {e}", file=sys.stderr, flush=True)
                 
-    if updated_any and len(cached_data) == len(TICKER_CONFIG):
+    if updated_any and len(cached_data) >= len(TICKER_CONFIG):
+        cached_data["analysis"] = generate_market_analysis(cached_data)
+
         data_dir = '/data'
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
@@ -72,20 +133,15 @@ if __name__ == "__main__":
     print("🚀 지표별 맞춤 주기 거시경제 모니터링 데몬 시작...", flush=True)
     
     while True:
-        # [추가] 웹 서버(Node.js)가 생성한 강제 갱신 플래그 파일 감지
         if os.path.exists(FLAG_FILE):
             print("⚡ 웹페이지 강제 새로고침 감지! 모든 지표를 즉시 수집합니다.", flush=True)
             get_macro_data(force_all=True)
             
-            # 수집이 완료되면 플래그 파일을 삭제하여 Node.js에 작업 완료를 알림
             try:
                 os.remove(FLAG_FILE)
             except Exception as e:
                 pass
         else:
-            # 평상시 백그라운드 주기적 갱신 로직 실행
             get_macro_data(force_all=False)
             
-        # [수정] 강제 갱신 신호를 즉각적으로 알아채기 위해 1초마다 루프를 돕니다.
-        # (실제 API 수집은 위 로직에서 필터링되므로 과부하가 없습니다.)
         time.sleep(1)
