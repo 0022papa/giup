@@ -32,7 +32,18 @@
         .dashboard-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
         .widget-card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); height: 340px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
         .widget-title { font-size: 14px; font-weight: bold; color: #666; padding: 12px 20px 5px 20px; text-align: left; margin: 0; z-index: 10; }
-        .price-container { text-align: left; padding: 0 20px; margin-bottom: 10px; display: flex; align-items: baseline; }
+        
+        /* 값 변경 하이라이트 애니메이션 CSS 추가 */
+        @keyframes updateFlash {
+            0% { background-color: rgba(255, 235, 59, 0.6); }
+            100% { background-color: transparent; }
+        }
+        .flash-animation {
+            animation: updateFlash 1.5s ease-out;
+            border-radius: 4px;
+        }
+
+        .price-container { text-align: left; padding: 5px 20px; margin-bottom: 5px; display: flex; align-items: baseline; transition: background-color 0.3s;}
         .current-price { font-size: 24px; font-weight: bold; color: #1e1e1e; margin-right: 10px; }
         .price-change { font-size: 14px; font-weight: bold; }
         .price-change.up { color: #d32f2f; }
@@ -54,7 +65,7 @@
     <div class="dashboard-container">
         <div class="widget-card">
             <p class="widget-title">원/달러 환율 (USD/KRW)</p>
-            <div class="price-container">
+            <div class="price-container" id="container-usdkrw">
                 <span class="current-price" id="price-usdkrw">-</span>
                 <span class="price-change" id="change-usdkrw">-</span>
             </div>
@@ -66,7 +77,7 @@
 
         <div class="widget-card">
             <p class="widget-title">미국 10년물 국채 금리</p>
-            <div class="price-container">
+            <div class="price-container" id="container-us10y">
                 <span class="current-price" id="price-us10y">-</span>
                 <span class="price-change" id="change-us10y">-</span>
             </div>
@@ -78,7 +89,7 @@
 
         <div class="widget-card">
             <p class="widget-title">WTI 국제유가</p>
-            <div class="price-container">
+            <div class="price-container" id="container-wti">
                 <span class="current-price" id="price-wti">-</span>
                 <span class="price-change" id="change-wti">-</span>
             </div>
@@ -90,7 +101,7 @@
 
         <div class="widget-card">
             <p class="widget-title">나스닥 100</p>
-            <div class="price-container">
+            <div class="price-container" id="container-ndx">
                 <span class="current-price" id="price-ndx">-</span>
                 <span class="price-change" id="change-ndx">-</span>
             </div>
@@ -102,7 +113,7 @@
         
         <div class="widget-card">
             <p class="widget-title">코스피 (KOSPI)</p>
-            <div class="price-container">
+            <div class="price-container" id="container-kospi">
                 <span class="current-price" id="price-kospi">-</span>
                 <span class="price-change" id="change-kospi">-</span>
             </div>
@@ -114,7 +125,7 @@
         
          <div class="widget-card">
             <p class="widget-title">VIX 공포지수</p>
-            <div class="price-container">
+            <div class="price-container" id="container-vix">
                 <span class="current-price" id="price-vix">-</span>
                 <span class="price-change" id="change-vix">-</span>
             </div>
@@ -159,7 +170,7 @@
                     analysisEl.innerHTML = '현재 데이터를 분석 중입니다...';
                 }
 
-                function updatePriceInfo(priceId, changeId, chartData) {
+                function updatePriceInfo(priceId, changeId, chartData, containerId) {
                     if (!chartData || chartData.length < 2) return;
                     const latest = chartData[chartData.length - 1];   
                     const previous = chartData[chartData.length - 2]; 
@@ -170,8 +181,18 @@
                     
                     const priceEl = document.getElementById(priceId);
                     const changeEl = document.getElementById(changeId);
+                    const containerEl = document.getElementById(containerId);
                     
-                    priceEl.innerText = currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const newPriceString = currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    
+                    // 값이 이전과 다르고, 초기 로딩 상태('-')가 아닐 때 애니메이션 실행
+                    if (priceEl.innerText !== "-" && priceEl.innerText !== newPriceString) {
+                        containerEl.classList.remove('flash-animation');
+                        void containerEl.offsetWidth; // 리플로우 강제 발생으로 애니메이션 재시작 트릭
+                        containerEl.classList.add('flash-animation');
+                    }
+
+                    priceEl.innerText = newPriceString;
                     const formattedChange = Math.abs(change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     const formattedPercent = changePercent.toFixed(2);
                     
@@ -215,14 +236,12 @@
                                 maintainAspectRatio: false,
                                 plugins: { legend: { display: false } },
                                 scales: { 
-                                    // [추가 및 수정] X축 설정: 최신 데이터 기준 5일 간격으로 세로줄과 날짜(MM-DD) 표시
                                     x: { 
                                         display: true, 
                                         grid: {
                                             color: function(context) {
                                                 if (context.index !== undefined && context.chart.data.labels) {
                                                     const totalLabels = context.chart.data.labels.length;
-                                                    // 최신 데이터(마지막 인덱스)로부터 5의 배수만큼 떨어진 곳에만 색상을 줌
                                                     if ((totalLabels - 1 - context.index) % 5 === 0) {
                                                         return '#e0e0e0';
                                                     }
@@ -237,10 +256,8 @@
                                             font: { size: 10 },
                                             callback: function(value, index) {
                                                 const totalLabels = this.chart.data.labels.length;
-                                                // 5일 간격으로만 텍스트를 반환
                                                 if ((totalLabels - 1 - index) % 5 === 0) {
                                                     const dateStr = this.getLabelForValue(value);
-                                                    // 'YYYY-MM-DD' 형태에서 앞 5자리(YYYY-)를 잘라내 'MM-DD'로 깔끔하게 표시
                                                     return dateStr ? dateStr.substring(5) : ''; 
                                                 }
                                                 return '';
@@ -260,22 +277,22 @@
                 }
 
                 drawChart('chart-usdkrw', 'load-usdkrw', data.usdkrw, '#2962FF', 'rgba(41, 98, 255, 0.1)');
-                updatePriceInfo('price-usdkrw', 'change-usdkrw', data.usdkrw);
+                updatePriceInfo('price-usdkrw', 'change-usdkrw', data.usdkrw, 'container-usdkrw');
                 
                 drawChart('chart-us10y', 'load-us10y', data.us10y, '#FF9800', 'rgba(255, 152, 0, 0.1)');
-                updatePriceInfo('price-us10y', 'change-us10y', data.us10y);
+                updatePriceInfo('price-us10y', 'change-us10y', data.us10y, 'container-us10y');
                 
                 drawChart('chart-wti', 'load-wti', data.wti, '#00897B', 'rgba(0, 137, 123, 0.1)');
-                updatePriceInfo('price-wti', 'change-wti', data.wti);
+                updatePriceInfo('price-wti', 'change-wti', data.wti, 'container-wti');
                 
                 drawChart('chart-ndx', 'load-ndx', data.ndx, '#D81B60', 'rgba(216, 27, 96, 0.1)');
-                updatePriceInfo('price-ndx', 'change-ndx', data.ndx);
+                updatePriceInfo('price-ndx', 'change-ndx', data.ndx, 'container-ndx');
                 
                 drawChart('chart-kospi', 'load-kospi', data.kospi, '#8E24AA', 'rgba(142, 36, 170, 0.1)');
-                updatePriceInfo('price-kospi', 'change-kospi', data.kospi);
+                updatePriceInfo('price-kospi', 'change-kospi', data.kospi, 'container-kospi');
                 
                 drawChart('chart-vix', 'load-vix', data.vix, '#E53935', 'rgba(229, 57, 53, 0.1)');
-                updatePriceInfo('price-vix', 'change-vix', data.vix);
+                updatePriceInfo('price-vix', 'change-vix', data.vix, 'container-vix');
 
             } catch (error) {
                 console.error("대시보드 데이터 로딩 실패:", error);
