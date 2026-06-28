@@ -1,8 +1,8 @@
-require('dotenv').config(); // .env 파일에서 환경 변수 로드
+require('dotenv').config();
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const querystring = require('querystring'); // form 데이터 파싱을 위해
+const querystring = require('querystring');
 
 const PORT = 3030;
 const HOST = '0.0.0.0';
@@ -13,15 +13,13 @@ try {
   if (process.env.VALID_USERS) {
     VALID_USERS = JSON.parse(process.env.VALID_USERS);
   } else {
-    // .env에 설정이 누락되었을 때 사용할 기본 계정
     VALID_USERS = { 'admin': 'password123' };
   }
 } catch (error) {
   console.error(".env 파일의 VALID_USERS 형식이 올바르지 않습니다. JSON 형식을 확인해주세요:", error);
-  VALID_USERS = { 'admin': 'password123' }; // 파싱 에러 시 기본 계정 적용
+  VALID_USERS = { 'admin': 'password123' }; 
 }
 
-// 하위 호환성 유지: 기존처럼 단일 USER, PASSWORD가 .env에 있다면 추가
 if (process.env.USER && process.env.PASSWORD) {
   VALID_USERS[process.env.USER] = process.env.PASSWORD;
 }
@@ -107,7 +105,7 @@ const server = http.createServer((req, res) => {
     });
     res.end();
   } 
-  // [추가] 종목 리스트 API 엔드포인트
+  
   else if (req.url === '/api/stocks' && req.method === 'GET') {
     if (!isLoggedIn) {
       res.writeHead(401);
@@ -117,7 +115,6 @@ const server = http.createServer((req, res) => {
     const stockFilePath = '/data/stock_list.json';
     fs.readFile(stockFilePath, 'utf8', (err, data) => {
       if (err) {
-        console.error("Stock File Read Error:", err);
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify([]));
       } else {
@@ -126,6 +123,71 @@ const server = http.createServer((req, res) => {
       }
     });
   }
+  
+  // [수정] 파일 기반 통신(IPC)으로 파이썬 봇에 작업을 지시하는 라우트
+  else if (req.url.startsWith('/api/valuation') && req.method === 'GET') {
+    if (!isLoggedIn) {
+      res.writeHead(401);
+      res.end('Unauthorized');
+      return;
+    }
+    
+    const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+    const stock = parsedUrl.searchParams.get('stock');
+    
+    if (!stock) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: '종목명이 입력되지 않았습니다.' }));
+      return;
+    }
+
+    const reqFile = '/data/val_request.json';
+    const resFile = '/data/val_result.json';
+
+    // 1. 혹시 남아있을 수 있는 이전 결과 파일 미리 삭제
+    if (fs.existsSync(resFile)) {
+        try { fs.unlinkSync(resFile); } catch(e) {}
+    }
+
+    // 2. 파이썬 봇에게 처리할 종목을 파일로 전달
+    fs.writeFile(reqFile, JSON.stringify({ stock: stock, time: Date.now() }), 'utf8', (err) => {
+      if (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: '분석 요청을 전달하지 못했습니다.' }));
+          return;
+      }
+
+      let attempts = 0;
+      const maxAttempts = 40; // 최대 20초 (500ms * 40번) 대기
+      
+      // 3. 0.5초마다 파이썬 봇이 분석을 완료하고 결과 파일을 생성했는지 폴링(Polling)
+      const checkInterval = setInterval(() => {
+          attempts++;
+          
+          if (fs.existsSync(resFile)) {
+              clearInterval(checkInterval);
+              fs.readFile(resFile, 'utf8', (err, data) => {
+                  // 결과 확인 후 파일 즉시 삭제
+                  try { fs.unlinkSync(resFile); } catch(e) {}
+                  
+                  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                  if (err) {
+                      res.end(JSON.stringify({ error: '분석 결과를 서버에서 읽어오지 못했습니다.' }));
+                  } else {
+                      res.end(data);
+                  }
+              });
+          } else if (attempts >= maxAttempts) {
+              // 응답 지연 시 타임아웃 처리
+              clearInterval(checkInterval);
+              try { fs.unlinkSync(reqFile); } catch(e) {} // 요청 취소
+              res.writeHead(504, { 'Content-Type': 'application/json; charset=utf-8' });
+              res.end(JSON.stringify({ error: '파이썬 봇 응답 지연 (분석 시간이 초과되었습니다).' }));
+          }
+      }, 500);
+    });
+  }
+
   else if (req.url.startsWith('/api/macro') && req.method === 'GET') {
     if (!isLoggedIn) {
       res.writeHead(401);
@@ -142,7 +204,6 @@ const server = http.createServer((req, res) => {
     const sendData = () => {
         fs.readFile(dataFilePath, 'utf8', (err, data) => {
             if (err) {
-                console.error("Data File Read Error:", err);
                 res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify({ error: '백그라운드에서 데이터를 수집 중입니다. 잠시 후 새로고침 해주세요.' }));
                 return;
@@ -156,10 +217,8 @@ const server = http.createServer((req, res) => {
     if (isForce) {
         fs.writeFile(flagFilePath, '1', (err) => {
             if (err) {
-                console.error("플래그 파일 생성 실패", err);
                 return sendData();
             }
-            
             let checkCount = 0;
             const checkInterval = setInterval(() => {
                 checkCount++;
