@@ -7,7 +7,6 @@ const querystring = require('querystring'); // form 데이터 파싱을 위해
 const PORT = 3030;
 const HOST = '0.0.0.0';
 
-// [수정] .env 파일에서 VALID_USERS 환경 변수를 가져와 JSON으로 파싱하여 사용
 let VALID_USERS = {};
 
 try {
@@ -108,7 +107,25 @@ const server = http.createServer((req, res) => {
     });
     res.end();
   } 
-  
+  // [추가] 종목 리스트 API 엔드포인트
+  else if (req.url === '/api/stocks' && req.method === 'GET') {
+    if (!isLoggedIn) {
+      res.writeHead(401);
+      res.end('Unauthorized');
+      return;
+    }
+    const stockFilePath = '/data/stock_list.json';
+    fs.readFile(stockFilePath, 'utf8', (err, data) => {
+      if (err) {
+        console.error("Stock File Read Error:", err);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify([]));
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(data);
+      }
+    });
+  }
   else if (req.url.startsWith('/api/macro') && req.method === 'GET') {
     if (!isLoggedIn) {
       res.writeHead(401);

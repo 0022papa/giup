@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import warnings
+import FinanceDataReader as fdr # 대량의 주식 종목 리스트를 안전하게 수집하기 위해 추가
 
 # yfinance 내부 경고 메시지 숨김 처리
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -27,9 +28,33 @@ last_update_times = {key: 0 for key in TICKER_CONFIG.keys()}
 # 강제 갱신을 감지할 플래그 파일 경로
 FLAG_FILE = '/data/force_refresh.flag'
 
+# [수정] FinanceDataReader를 사용하여 한 번의 통신으로 국내 주식 종목 리스트 수집
+def fetch_korean_stocks():
+    try:
+        print("📊 국내 주식 종목(KRX) 리스트 수집 시작...", flush=True)
+        
+        # 'KRX'를 인자로 주면 코스피, 코스닥, 코넥스 전체 종목을 DataFrame으로 한 번에 가져옵니다.
+        df = fdr.StockListing('KRX')
+        
+        # 종목명(Name) 컬럼만 추출하여 리스트로 변환 (결측치 제거)
+        stock_list = df['Name'].dropna().tolist()
+                
+        data_dir = '/data'
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+            
+        file_path = os.path.join(data_dir, 'stock_list.json')
+        
+        # 중복 제거 후 저장
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(list(set(stock_list)), f, ensure_ascii=False)
+            
+        print(f"✅ 국내 주식 종목 리스트({len(stock_list)}개) 수집 및 저장 완료!", flush=True)
+    except Exception as e:
+        print(f"❌ 주식 종목 리스트 갱신 중 에러 발생: {e}", file=sys.stderr, flush=True)
+
 # 5대 거시지표 영향 분석 시 문장 끝에 영향도 이모지(🟢, ⚪, 🔴) 추가
 def generate_market_analysis(data_dict):
-    # gold를 필수 분석 키에 추가
     required_keys = ['usdkrw', 'us10y', 'wti', 'ndx', 'vix', 'gold']
     if not all(k in data_dict and isinstance(data_dict[k], list) and len(data_dict[k]) >= 2 for k in required_keys):
         return "데이터 수집 중이거나 부족하여 분석할 수 없습니다."
@@ -86,7 +111,7 @@ def generate_market_analysis(data_dict):
     else:
         analysis_texts.append("➖ [VIX] 공포지수 보합: 시장의 변동성이 기존 수준을 유지하고 있습니다. ⚪")
 
-    # 6. 금 분석 (추가)
+    # 6. 금 분석
     gold_last = data_dict['gold'][-1]['close']
     gold_prev = data_dict['gold'][-2]['close']
     if gold_last > gold_prev:
@@ -144,6 +169,9 @@ def get_macro_data(force_all=False):
 
 if __name__ == "__main__":
     print("🚀 지표별 맞춤 주기 거시경제 모니터링 데몬 시작...", flush=True)
+    
+    # 데몬 시작 시 최초 1회 주식 리스트 수집 수행
+    fetch_korean_stocks()
     
     while True:
         if os.path.exists(FLAG_FILE):
