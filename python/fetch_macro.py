@@ -19,6 +19,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 TICKER_CONFIG = {
     "kospi": {"symbol": "^KS11", "interval": 60},
     "kosdaq": {"symbol": "^KQ11", "interval": 60},
+    "sp500": {"symbol": "^GSPC", "interval": 60},  # [추가] S&P 500 지수
     "ndx": {"symbol": "^NDX", "interval": 60},
     "usdkrw": {"symbol": "USDKRW=X", "interval": 300},
     "us10y": {"symbol": "^TNX", "interval": 600},
@@ -169,7 +170,8 @@ def get_valuation(stock_name):
 
 
 def generate_market_analysis(data_dict):
-    required_keys = ['usdkrw', 'us10y', 'wti', 'ndx', 'vix', 'gold']
+    # [수정] sp500 추가
+    required_keys = ['usdkrw', 'us10y', 'wti', 'sp500', 'ndx', 'vix', 'gold']
     if not all(k in data_dict and isinstance(data_dict[k], list) and len(data_dict[k]) >= 2 for k in required_keys):
         return "데이터 수집 중이거나 부족하여 분석할 수 없습니다."
 
@@ -201,6 +203,16 @@ def generate_market_analysis(data_dict):
         analysis_texts.append("📉 [국제유가] WTI 하락: 물가 상승 압력을 완화하여 코스피 전반의 투자 심리 개선에 도움을 줍니다. 🟢")
     else:
         analysis_texts.append("➖ [국제유가] WTI 보합: 에너지 가격 변동에 따른 인플레이션 추가 충격은 제한적입니다. ⚪")
+
+    # [추가] S&P 500 분석
+    sp500_last = data_dict['sp500'][-1]['close']
+    sp500_prev = data_dict['sp500'][-2]['close']
+    if sp500_last > sp500_prev:
+        analysis_texts.append("📈 [S&P500] 500 지수 상승: 미 증시 대형주 중심의 안정적인 상승세로 글로벌 투자 심리에 긍정적입니다. 🟢")
+    elif sp500_last < sp500_prev:
+        analysis_texts.append("📉 [S&P500] 500 지수 하락: 미 증시 전반의 약세로 인해 국내 증시에도 보수적인 접근이 필요합니다. 🔴")
+    else:
+        analysis_texts.append("➖ [S&P500] 500 지수 보합: 뚜렷한 방향성이 부재한 관망세가 이어지고 있습니다. ⚪")
 
     ndx_last = data_dict['ndx'][-1]['close']
     ndx_prev = data_dict['ndx'][-2]['close']

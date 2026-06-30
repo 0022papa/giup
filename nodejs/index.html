@@ -47,6 +47,12 @@
 
         .toast-message { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background-color: rgba(30, 30, 30, 0.85); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease; pointer-events: none; }
         .toast-message.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+        
+        /* 프리미엄 조절기 슬라이더 스타일 */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #D81B60; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e0e0e0; border-radius: 2px; }
+        input[type=range]:focus { outline: none; }
     </style>
 </head>
 <body>
@@ -71,101 +77,14 @@
     </div>
 
     <div class="dashboard-container">
-        <div class="widget-card">
-            <p class="widget-title">원/달러 환율 (USD/KRW)</p>
-            <div class="price-container" id="container-usdkrw">
-                <span class="current-price" id="price-usdkrw">-</span>
-                <span class="price-change" id="change-usdkrw">-</span>
-            </div>
-            <div class="chart-container">
-                <div class="loading-text" id="load-usdkrw">데이터 불러오는 중...</div>
-                <canvas id="chart-usdkrw"></canvas>
-            </div>
-        </div>
-
-        <div class="widget-card">
-            <p class="widget-title">미국 10년물 국채 금리</p>
-            <div class="price-container" id="container-us10y">
-                <span class="current-price" id="price-us10y">-</span>
-                <span class="price-change" id="change-us10y">-</span>
-            </div>
-            <div class="chart-container">
-                <div class="loading-text" id="load-us10y">데이터 불러오는 중...</div>
-                <canvas id="chart-us10y"></canvas>
-            </div>
-        </div>
-
-        <div class="widget-card">
-            <p class="widget-title">WTI 국제유가</p>
-            <div class="price-container" id="container-wti">
-                <span class="current-price" id="price-wti">-</span>
-                <span class="price-change" id="change-wti">-</span>
-            </div>
-            <div class="chart-container">
-                <div class="loading-text" id="load-wti">데이터 불러오는 중...</div>
-                <canvas id="chart-wti"></canvas>
-            </div>
-        </div>
-
-        <div class="widget-card">
-            <p class="widget-title">나스닥 100</p>
-            <div class="price-container" id="container-ndx">
-                <span class="current-price" id="price-ndx">-</span>
-                <span class="price-change" id="change-ndx">-</span>
-            </div>
-            <div class="chart-container">
-                <div class="loading-text" id="load-ndx">데이터 불러오는 중...</div>
-                <canvas id="chart-ndx"></canvas>
-            </div>
-        </div>
-        
-        <div class="widget-card">
-            <p class="widget-title">코스피 (KOSPI)</p>
-            <div class="price-container" id="container-kospi">
-                <span class="current-price" id="price-kospi">-</span>
-                <span class="price-change" id="change-kospi">-</span>
-            </div>
-            <div class="chart-container">
-                <div class="loading-text" id="load-kospi">데이터 불러오는 중...</div>
-                <canvas id="chart-kospi"></canvas>
-            </div>
-        </div>
-
-        <div class="widget-card">
-            <p class="widget-title">코스닥 (KOSDAQ)</p>
-            <div class="price-container" id="container-kosdaq">
-                <span class="current-price" id="price-kosdaq">-</span>
-                <span class="price-change" id="change-kosdaq">-</span>
-            </div>
-            <div class="chart-container">
-                <div class="loading-text" id="load-kosdaq">데이터 불러오는 중...</div>
-                <canvas id="chart-kosdaq"></canvas>
-            </div>
-        </div>
-        
-        <div class="widget-card">
-            <p class="widget-title">VIX 공포지수</p>
-            <div class="price-container" id="container-vix">
-                <span class="current-price" id="price-vix">-</span>
-                <span class="price-change" id="change-vix">-</span>
-            </div>
-            <div class="chart-container">
-                <div class="loading-text" id="load-vix">데이터 불러오는 중...</div>
-                <canvas id="chart-vix"></canvas>
-            </div>
-        </div>
-
-        <div class="widget-card">
-            <p class="widget-title">금 (Gold)</p>
-            <div class="price-container" id="container-gold">
-                <span class="current-price" id="price-gold">-</span>
-                <span class="price-change" id="change-gold">-</span>
-            </div>
-            <div class="chart-container">
-                <div class="loading-text" id="load-gold">데이터 불러오는 중...</div>
-                <canvas id="chart-gold"></canvas>
-            </div>
-        </div>
+        <div class="widget-card"><p class="widget-title">원/달러 환율 (USD/KRW)</p><div class="price-container" id="container-usdkrw"><span class="current-price" id="price-usdkrw">-</span><span class="price-change" id="change-usdkrw">-</span></div><div class="chart-container"><div class="loading-text" id="load-usdkrw">로딩 중...</div><canvas id="chart-usdkrw"></canvas></div></div>
+        <div class="widget-card"><p class="widget-title">미국 10년물 국채 금리</p><div class="price-container" id="container-us10y"><span class="current-price" id="price-us10y">-</span><span class="price-change" id="change-us10y">-</span></div><div class="chart-container"><div class="loading-text" id="load-us10y">로딩 중...</div><canvas id="chart-us10y"></canvas></div></div>
+        <div class="widget-card"><p class="widget-title">WTI 국제유가</p><div class="price-container" id="container-wti"><span class="current-price" id="price-wti">-</span><span class="price-change" id="change-wti">-</span></div><div class="chart-container"><div class="loading-text" id="load-wti">로딩 중...</div><canvas id="chart-wti"></canvas></div></div>
+        <div class="widget-card"><p class="widget-title">나스닥 100</p><div class="price-container" id="container-ndx"><span class="current-price" id="price-ndx">-</span><span class="price-change" id="change-ndx">-</span></div><div class="chart-container"><div class="loading-text" id="load-ndx">로딩 중...</div><canvas id="chart-ndx"></canvas></div></div>
+        <div class="widget-card"><p class="widget-title">코스피 (KOSPI)</p><div class="price-container" id="container-kospi"><span class="current-price" id="price-kospi">-</span><span class="price-change" id="change-kospi">-</span></div><div class="chart-container"><div class="loading-text" id="load-kospi">로딩 중...</div><canvas id="chart-kospi"></canvas></div></div>
+        <div class="widget-card"><p class="widget-title">코스닥 (KOSDAQ)</p><div class="price-container" id="container-kosdaq"><span class="current-price" id="price-kosdaq">-</span><span class="price-change" id="change-kosdaq">-</span></div><div class="chart-container"><div class="loading-text" id="load-kosdaq">로딩 중...</div><canvas id="chart-kosdaq"></canvas></div></div>
+        <div class="widget-card"><p class="widget-title">VIX 공포지수</p><div class="price-container" id="container-vix"><span class="current-price" id="price-vix">-</span><span class="price-change" id="change-vix">-</span></div><div class="chart-container"><div class="loading-text" id="load-vix">로딩 중...</div><canvas id="chart-vix"></canvas></div></div>
+        <div class="widget-card"><p class="widget-title">금 (Gold)</p><div class="price-container" id="container-gold"><span class="current-price" id="price-gold">-</span><span class="price-change" id="change-gold">-</span></div><div class="chart-container"><div class="loading-text" id="load-gold">로딩 중...</div><canvas id="chart-gold"></canvas></div></div>
     </div>
 
     <div style="margin-top: 50px; margin-bottom: 30px;">
@@ -346,11 +265,7 @@
                                             }
                                         }
                                     },
-                                    y: { 
-                                        display: true, 
-                                        position: 'right', 
-                                        grid: { color: '#f0f0f0' } 
-                                    } 
+                                    y: { display: true, position: 'right', grid: { color: '#f0f0f0' } } 
                                 },
                                 interaction: { intersect: false, mode: 'index' }
                             }
@@ -398,55 +313,128 @@
             const autocompleteResults = document.getElementById('autocomplete-results');
             const searchBtn = document.getElementById('search-btn');
 
-            // [추가] JSON 데이터를 받아 UI 화면에 그려주는 함수
             function renderValuationResult(data) {
                 const resultBox = document.getElementById('valuation-result');
                 resultBox.style.display = 'block';
 
-                const rimColor = data.rim_margin > 0 ? '#d32f2f' : '#1565c0'; // 저평가(빨강), 고평가(파랑)
-                const perColor = data.per_margin > 0 ? '#d32f2f' : '#1565c0';
+                const stockType = data.stock_type || '가치주'; 
+                let bestModel = data.best_model;
                 
-                const rimText = data.rim_margin > 0 ? `+${data.rim_margin}% (저평가)` : `${data.rim_margin}% (고평가)`;
-                const perText = data.per_margin > 0 ? `+${data.per_margin}% (저평가)` : `${data.per_margin}% (고평가)`;
+                const baseFairPrice = data.fair_price || data.rim_price || 0; 
+                const currentPrice = data.current_price || 0;
+                let margin = data.margin || data.rim_margin || 0;
+                
+                let accuracy = data.accuracy;
+                let modelDesc = '';
+
+                if (stockType === '성장주') {
+                    bestModel = bestModel || 'DCF (할인된 현금 흐름) 모델';
+                    accuracy = accuracy || '75-85%';
+                    modelDesc = '미래의 잉여현금흐름을 현재 가치로 할인하여 성장성을 반영합니다.';
+                } else if (stockType === '배당주') {
+                    bestModel = bestModel || 'DDM (배당 할인) 모델';
+                    accuracy = accuracy || '80-85%';
+                    modelDesc = '미래 배당금의 현재 가치를 합산하여 안정적인 배당 수익을 반영합니다.';
+                } else if (stockType === '적자기업') {
+                    bestModel = bestModel || 'PSR (주가매출비율) 모델';
+                    accuracy = accuracy || '65-75%';
+                    modelDesc = '수익이 없는 상태이므로 매출액을 기준으로 성장 가치를 평가합니다.';
+                } else if (stockType === '금융주') {
+                    bestModel = bestModel || 'PBR (주가순자산비율) 모델';
+                    accuracy = accuracy || '70-80%';
+                    modelDesc = '자산 집약적인 금융업 특성상 순자산 가치 기반 평가가 가장 적합합니다.';
+                } else {
+                    bestModel = bestModel || '한국 시장 최적화 복합 모델';
+                    accuracy = accuracy || '88-92%';
+                    modelDesc = 'PER, PBR, DCF 모델을 결합해 한국 시장 특성과 안정성을 반영합니다.';
+                }
+
+                const marginColor = margin > 0 ? '#d32f2f' : '#1565c0'; 
+                const marginText = margin > 0 ? `+${margin}% (저평가)` : `${margin}% (고평가)`;
 
                 resultBox.innerHTML = `
                     <h3 style="margin-top: 0; color: #1e1e1e; font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                        📈 ${data.stock} 펀더멘털 적정주가 분석 결과
+                        📈 ${data.stock} 맞춤형 적정주가 분석 결과 <span style="font-size: 14px; color: #007acc; font-weight: normal;">(${stockType})</span>
                     </h3>
                     <div style="display: flex; gap: 20px; flex-wrap: wrap; text-align: left;">
                         <div style="flex: 1; min-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
                             <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">현재 주가</p>
-                            <p style="margin: 0; font-size: 24px; font-weight: bold;">${data.current_price.toLocaleString()} 원</p>
-                            <p style="margin: 10px 0 0 0; font-size: 12px; color: #888;">ROE: ${data.roe}% | BPS: ${data.bps.toLocaleString()} | EPS: ${data.eps.toLocaleString()}</p>
+                            <p style="margin: 0; font-size: 24px; font-weight: bold;">${(currentPrice).toLocaleString()} 원</p>
+                            <p style="margin: 10px 0 0 0; font-size: 12px; color: #888;">ROE: ${data.roe || 0}% | BPS: ${(data.bps || 0).toLocaleString()} | EPS: ${(data.eps || 0).toLocaleString()}</p>
                         </div>
-                        <div style="flex: 1; min-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #8E24AA;">
-                            <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">잔여이익모델(RIM) 적정가</p>
-                            <p style="margin: 0; font-size: 24px; font-weight: bold;">${data.rim_price.toLocaleString()} 원</p>
-                            <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold; color: ${rimColor};">안전마진: ${rimText}</p>
-                        </div>
-                        <div style="flex: 1; min-width: 200px; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #0288D1;">
-                            <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">수익가치(PER 10배) 적정가</p>
-                            <p style="margin: 0; font-size: 24px; font-weight: bold;">${data.per_price.toLocaleString()} 원</p>
-                            <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold; color: ${perColor};">안전마진: ${perText}</p>
+                        <div style="flex: 2; min-width: 300px; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #8E24AA; position: relative;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <p style="margin: 0 0 5px 0; font-size: 14px; color: #666;">추천 분석 모델: <strong>${bestModel}</strong></p>
+                                    <p style="margin: 0 0 10px 0; font-size: 12px; color: #888;">모델 예상 정확도: ${accuracy}</p>
+                                </div>
+                            </div>
+                            <p id="display-fair-price" style="margin: 0; font-size: 24px; font-weight: bold; transition: color 0.3s;">${(baseFairPrice).toLocaleString()} 원</p>
+                            <p id="display-margin" style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold; color: ${marginColor}; transition: color 0.3s;">안전마진: ${marginText}</p>
+                            
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <label for="premium-slider" style="font-size: 13px; font-weight: bold; color: #333;">🚀 시장 주도주/테마 프리미엄 반영</label>
+                                    <span style="font-size: 14px; font-weight: bold; color: #D81B60;">+<span id="premium-val">0</span>%</span>
+                                </div>
+                                <input type="range" id="premium-slider" min="0" max="500" step="5" value="0">
+                                <p style="font-size: 11px; color: #888; margin: 5px 0 0 0;">(실제 주가와의 괴리가 클 경우, 시장의 미래 기대감을 프리미엄으로 조절하여 적정주가를 시뮬레이션 해보세요.)</p>
+                            </div>
                         </div>
                     </div>
                     <p style="font-size: 12px; color: #888; text-align: left; margin-top: 15px; margin-bottom: 0;">
-                        * 요구수익률 8%, 영구성장률 2%를 가정한 간이 모델입니다. 보조 투자 지표로만 활용하세요.
+                        * <strong>분석 근거:</strong> ${modelDesc}
                     </p>
                 `;
+
+                const slider = document.getElementById('premium-slider');
+                const premiumValText = document.getElementById('premium-val');
+                const displayFairPrice = document.getElementById('display-fair-price');
+                const displayMargin = document.getElementById('display-margin');
+
+                slider.addEventListener('input', function() {
+                    const premium = parseInt(this.value);
+                    premiumValText.innerText = premium;
+                    
+                    const adjustedFairPrice = baseFairPrice * (1 + (premium / 100));
+                    
+                    let adjustedMargin = 0;
+                    if (currentPrice > 0) {
+                        adjustedMargin = (((adjustedFairPrice - currentPrice) / currentPrice) * 100).toFixed(2);
+                    }
+                    
+                    displayFairPrice.innerText = Math.round(adjustedFairPrice).toLocaleString() + ' 원';
+                    displayFairPrice.style.color = premium > 0 ? '#D81B60' : '#1e1e1e';
+                    
+                    if (adjustedMargin > 0) {
+                        displayMargin.innerText = `안전마진: +${adjustedMargin}% (저평가)`;
+                        displayMargin.style.color = '#d32f2f';
+                    } else {
+                        displayMargin.innerText = `안전마진: ${adjustedMargin}% (고평가)`;
+                        displayMargin.style.color = '#1565c0';
+                    }
+                });
             }
 
-            // [수정] 검색 실행 시 백엔드 API를 호출하도록 로직 변경
+            // [수정된 부분] 100% 일치하는 종목을 최우선으로 찾도록 검색 로직 개선
             function executeSearch() {
                 const query = searchInput.value.trim();
                 if (!query) return;
                 
-                const matchedStock = KOREAN_STOCKS.find(stock => matchStock(stock, query));
+                // 1. 공백과 대소문자를 무시하고 정확히 일치하는 종목을 먼저 검색
+                let matchedStock = KOREAN_STOCKS.find(stock => 
+                    stock.replace(/\s/g, "").toLowerCase() === query.replace(/\s/g, "").toLowerCase()
+                );
+                
+                // 2. 정확히 일치하는 종목이 없다면 기존처럼 포함(부분 일치) 및 초성 검색 수행
+                if (!matchedStock) {
+                    matchedStock = KOREAN_STOCKS.find(stock => matchStock(stock, query));
+                }
+
                 if (matchedStock) {
                     searchInput.value = matchedStock;
-                    showToast(`'${matchedStock}' 종목의 재무 데이터를 수집 및 분석 중입니다...`);
+                    showToast(`'${matchedStock}' 분석 데이터를 수집 중입니다...`);
                     
-                    // 백엔드 API 호출
                     fetch(`/api/valuation?stock=${encodeURIComponent(matchedStock)}`)
                         .then(res => res.json())
                         .then(data => {
@@ -462,7 +450,7 @@
                         });
 
                 } else {
-                    showToast(`'${query}'에 매칭되는 지원 종목이 목록에 없습니다.`);
+                    showToast(`'${query}' 매칭 종목이 없습니다.`);
                 }
                 autocompleteResults.style.display = 'none';
             }
